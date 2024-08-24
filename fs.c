@@ -149,7 +149,13 @@ int fs_remove(char *file_name) {
         dir[i].used=!dir[i].used;
         strncpy(dir[i].name," ", 25);
         dir[i].size = 0;
+//    
+        int bloco_procurar = dir[i].first_block;
+        while(bloco_procurar != 2){
+          fat[bloco_procurar] = 1;
+        }
         dir[i].first_block = 0;
+        fat[dir[i].first_block] = 1;
       }
     }
 
@@ -161,8 +167,28 @@ int fs_remove(char *file_name) {
 }
 
 int fs_open(char *file_name, int mode) {
-  printf("Função não implementada: fs_open\n");
-  return -1;
+  if (mode == FS_R){ //se for abeerto em modo leitura, deve retornar -1 se arquivo nao existir
+    int achou = 0;
+    for(int i=0;i<128;i++){
+      if(!strcmp(dir[i].name, file_name)){
+        achou = 1;
+        break;
+      }
+    }
+    if(!achou) return -1;
+  }
+//   Ao abrir um arquivo para escrita, o arquivo deve ser criado ou um arquivo pré-existente 
+// deve ser apagado e criado novamente com tamanho
+// 0. Retorna o identificador do arquivo aberto, um inteiro, ou -1 em caso
+// de erro.
+  else if(mode == FS_W){
+    int result = fs_create(file_name);
+    if(result == -1){
+      fs_remove(file_name);
+      fs_create(file_name);
+    }
+  }
+  return 0;
 }
 
 int fs_close(int file)  {
