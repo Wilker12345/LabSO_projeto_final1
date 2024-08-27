@@ -48,7 +48,7 @@ int fs_init() {
 }
 
 int fs_format() {
-    //inicializando FAT
+  //inicializando FAT
   int i=0;
   for(;i<32;i++){
   	fat[i] = 3;
@@ -105,7 +105,7 @@ int fs_list(char *buffer, int size) {
       //esse eh o formato certo?
       char temp[50];
       snprintf(temp, sizeof(temp), "%-25s %d    ", dir[i].name, dir[i].size);
-      if(tamanho_usado + len(temp) < size){
+      if(tamanho_usado + strlen(temp) < size){
         strcat(buffer, temp);
       }
       else{
@@ -177,7 +177,8 @@ int fs_open(char *file_name, int mode) {
     }
     if(!achou) return -1;
   }
-//   Ao abrir um arquivo para escrita, o arquivo deve ser criado ou um arquivo pré-existente 
+
+//  Ao abrir um arquivo para escrita, o arquivo deve ser criado ou um arquivo pré-existente 
 // deve ser apagado e criado novamente com tamanho
 // 0. Retorna o identificador do arquivo aberto, um inteiro, ou -1 em caso
 // de erro.
@@ -191,17 +192,35 @@ int fs_open(char *file_name, int mode) {
   return 0;
 }
 
-int fs_close(int file)  {
+int fs_close(int file)  { //file indico o primeiro bloco no FAT?
+  // if(!dir[file].used){ //se existir o arquivo no diretório
+  //   dir[file].used = 0;
+  //   dir[file].name = "";
+  //   dir[file].size = 0;
+  //   dir[file].first_block = 0;
+    
+  // }
   printf("Função não implementada: fs_close\n");
   return 0;
 }
 
 int fs_write(char *buffer, int size, int file) {
-  printf("Função não implementada: fs_write\n");
+  char *buffer;
+  buffer = (char*) fat;
+  for(int sector = 0; sector < bl_size(); sector++){
+    for(int i=0; i < sizeof(fat); i++){
+      buffer[i%SECTORSIZE] = fat[i]; //precisa do modulo %
+      if(i == SECTORSIZE + sector*SECTORSIZE){
+        bl_write(sector, buffer);
+      }
+    }
+  }
   return -1;
 }
 
 int fs_read(char *buffer, int size, int file) {
-  printf("Função não implementada: fs_read\n");
+  for(int sector=0; sector < size; sector++){
+    bl_read(sector, buffer);
+  }
   return -1;
 }
