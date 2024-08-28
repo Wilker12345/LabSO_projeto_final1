@@ -71,6 +71,12 @@ int fs_format() {
   }
 
   //escrever as duas estruturas no disco
+  for (int sector = 0; sector < 32; sector++)
+  {
+    bl_write(sector, (char *) fat);
+  }
+  
+  bl_write(32, (char *) dir);
   // bl_write(qual_setor,o_que_escrever);
   return 0;
 }
@@ -88,7 +94,7 @@ int fs_free() {
   //cada celula equivale a um setor, cada setor tem 4096 bytes (isto eh, um clustersize)
   int total_bytes = celula_livre * CLUSTERSIZE;
   //nao tem printf no nucleo de um SO, portanto, devemos passar os bytes livres de alguma outra forma.
-  printf("total bytes livres: %d\n", total_bytes);
+  #printf("total bytes livres: %d\n", total_bytes);
   return 0;
 }
 
@@ -193,34 +199,16 @@ int fs_open(char *file_name, int mode) {
 }
 
 int fs_close(int file)  { //file indico o primeiro bloco no FAT?
-  // if(!dir[file].used){ //se existir o arquivo no diretório
-  //   dir[file].used = 0;
-  //   dir[file].name = "";
-  //   dir[file].size = 0;
-  //   dir[file].first_block = 0;
-    
-  // }
   printf("Função não implementada: fs_close\n");
   return 0;
 }
 
 int fs_write(char *buffer, int size, int file) {
-  char *buffer;
-  buffer = (char*) fat;
-  for(int sector = 0; sector < bl_size(); sector++){
-    for(int i=0; i < sizeof(fat); i++){
-      buffer[i%SECTORSIZE] = fat[i]; //precisa do modulo %
-      if(i == SECTORSIZE + sector*SECTORSIZE){
-        bl_write(sector, buffer);
-      }
-    }
-  }
-  return -1;
+   printf("Função não implementada: fs_write\n");
+   return -1;
 }
 
 int fs_read(char *buffer, int size, int file) {
-  for(int sector=0; sector < size; sector++){
-    bl_read(sector, buffer);
-  }
-  return -1;
+   printf("Função não implementada: fs_read\n");
+   return -1;
 }
