@@ -160,7 +160,7 @@ int fs_list(char *buffer, int size) {
   for(int i=0;i<DIRENTRIES;i++){
     if(dir[i].used == 1){
       char temp[50];
-      snprintf(temp, sizeof(temp), "%-25s %d    ", dir[i].name, dir[i].size);
+      snprintf(temp, sizeof(temp), "%-25s %d    \n", dir[i].name, dir[i].size);
       if(tamanho_usado + strlen(temp) < size){
         strcat(buffer, temp);
       }
