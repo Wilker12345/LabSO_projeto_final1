@@ -85,10 +85,10 @@ int fs_init() {
  
   if (i!=32) //disco novo
   {
+    //se disco não estiver formatado, formata ele
     fs_format();
   }
 
-  //printf("Função não implementada: fs_init\n");
   return 1;
 }
 
@@ -122,8 +122,7 @@ int fs_format() {
   }
   
   bl_write(32, (char *) dir);
-  // bl_write(qual_setor,o_que_escrever);
-  return 0;
+  return 1;
 }
 
 //retorna o espaco livre no dispositivo (disco) em bytes.
@@ -132,9 +131,7 @@ int fs_free() {
   if(!verifica_formatacao()){
     return 0;
   }
-  // printf("dentro do free\n");
 
-  //duvida: contar as celulas que estao parcialmente ocupadas por um arquivo?
   int celula_livre = 0;
   //fat representa o disco, entao o espaco que tem livre nele e o que livre no disco, exceto os quebrados
   for(int i=0;i<FATCLUSTERS;i++){
@@ -143,11 +140,8 @@ int fs_free() {
       celula_livre++;
     }
   }
-  // printf("celula_livre: %d\n", celula_livre);
   //cada celula equivale a um setor, cada setor tem 4096 bytes (isto eh, um clustersize)
   int total_bytes = celula_livre * CLUSTERSIZE;
-  //nao tem printf no nucleo de um SO, portanto, devemos passar os bytes livres de alguma outra forma.
-  // printf("total bytes livres: %d\n", total_bytes);
   return total_bytes;
 }
 
@@ -162,29 +156,18 @@ int fs_list(char *buffer, int size) {
   //reseta o vetor buffer e apaga tudo que já estava escrito nele
   memset(buffer, '\0', size);
 
-  //duvida: esse buffer tem 4096 bytes ou eh um vetor de bytes qualquer?
   int tamanho_usado = 0;
   for(int i=0;i<DIRENTRIES;i++){
-    // printf("teste\n");
     if(dir[i].used == 1){
-      // printf("dir[i]: %d\n", i);
-      // printf("dir[i].used: %d\n", dir[i].used);
-      //nao pode usar printf, tem que passar para um arquivo ou coisa assim
-      //esse eh o formato certo?
       char temp[50];
       snprintf(temp, sizeof(temp), "%-25s %d    ", dir[i].name, dir[i].size);
-      //o temp não esta escrevendo dentro do buffer, provavel erro com if(...)
       if(tamanho_usado + strlen(temp) < size){
-        // printf("asdadsadasd\n");
         strcat(buffer, temp);
-        // printf("buffer %s\n", buffer);
       }
       else{
         printf("Erro. Buffer cheio!\n");
-        return -1;
+        return 0;
       } 
-      // printf("temp: %s\n", temp);
-      // printf("%s%d   \n",dir[i].name, dir[i].size); //esse eh o formato certo?
     }
   }
   return 1;
@@ -199,7 +182,7 @@ int fs_create(char* file_name) {
   for(int i=0;i<DIRENTRIES;i++){
     if(!strcmp(file_name, dir[i].name)){ //se arquivo dir tem msm nome 
       printf("Erro! Ja existe um arquivo com esse nome\n");;
-      return -1; //ou return 0?
+      return 0;
     }
   }
 
@@ -209,7 +192,6 @@ int fs_create(char* file_name) {
     if(fat[i] == 1){
       fat[i] = 2; //marca essa celula como incio e fim de um arquivo (o arquivo tem tamanho 0, por isso, o inicio e o fim eh igual)
       primeiro_bloco = i;
-      // printf("i: %d\n", i);
       break;
     }
   }
@@ -228,9 +210,8 @@ int fs_create(char* file_name) {
       break;
     }
   }
-//
-    
-  return 0;
+
+  return 1;
 }
 
 int fs_remove(char *file_name) {
@@ -242,24 +223,18 @@ int fs_remove(char *file_name) {
   for(int i=0;i<128;i++){
     if(!strcmp(file_name, dir[i].name)){ //se arquivo dir tem msm nome do arquivo para remover
       dir[i].used = 0;
-      // printf("dir[i]: %d\n", i);
       memset(dir[i].name, ' ', 25*sizeof(char)); //inicializa o nome da string com " " em todas as celulas.
-      // strncpy(dir[i].name,' ', 25);
       dir[i].size = 0;
-//    
+
       int bloco_procurar = dir[i].first_block;
-      // printf("bloco_procurar: %d\n", bloco_procurar);
       int temp = -1;
-      // printf("%d\n", dir[i].first_block);
       while(temp != 2){
         temp = fat[bloco_procurar];
         fat[bloco_procurar] = 1;
         bloco_procurar = fat[temp]; //quando temp = 2, nao acontece nada de ruim
-        // printf("bloco_procurar: %d\n", bloco_procurar);
       }
       dir[i].first_block = 1;
       return 1;
-      // fat[dir[i].first_block] = 1; //essa parte ja eh feita antes.
     }
   }
   printf("Não existe arquivos com esse nome\n");
