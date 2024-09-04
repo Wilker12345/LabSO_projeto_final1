@@ -42,8 +42,53 @@ typedef struct {
 dir_entry dir[DIRENTRIES];
 
 
+
+int verifica_formatacao(){
+  int i=0;
+  while(i<32 && fat[i] == 3)
+  {
+    // printf("fat[i]: %d\n", fat[i]);
+    i++;
+  }
+
+  //se estiver formatado errado
+  // printf("i: %d\n", i);
+  if (i!=32) //disco novo
+  {
+    printf("sistema de arquivos não formatado\n");
+    return 0;
+  }
+
+  //se tiver formatado correto
+  return 1;
+}
+
 int fs_init() {  
-  printf("Função não implementada: fs_init\n");
+  //verificar se esta iniciado ou é disco novo
+  //se os 32 vprimeios espaços da fat são 3, então já foi inicado
+ 
+  int sector=0;
+  for(;sector<32;sector++)
+    bl_read(sector, (char *) fat + SECTORSIZE * sector);
+
+  for(;sector<33;sector++){
+    bl_read(sector, (char *) fat + SECTORSIZE * sector);
+    bl_read(sector, (char *) dir);
+  }
+
+  //verifica se está formatado
+  int i=0;
+  while(i<32 && fat[i] == 3)
+  {
+    i++;
+  }
+ 
+  if (i!=32) //disco novo
+  {
+    fs_format();
+  }
+
+  //printf("Função não implementada: fs_init\n");
   return 1;
 }
 
@@ -65,7 +110,7 @@ int fs_format() {
   i=0;
   for(;i<128;i++){
   	dir[i].used = 0;
-  	memset(dir[i].name, " ", 25*sizeof(char)); //inicializa o nome da string com " " em todas as celulas.
+  	memset(dir[i].name, ' ', 25*sizeof(char)); //inicializa o nome da string com " " em todas as celulas.
   	dir[i].first_block = 0;
   	dir[i].size = 0;
   }
@@ -73,7 +118,7 @@ int fs_format() {
   //escrever as duas estruturas no disco
   for (int sector = 0; sector < 32; sector++)
   {
-    bl_write(sector, (char *) fat);
+    bl_write(sector, (char *) fat + SECTORSIZE * sector);
   }
   
   bl_write(32, (char *) dir);
@@ -83,95 +128,145 @@ int fs_format() {
 
 //retorna o espaco livre no dispositivo (disco) em bytes.
 int fs_free() {
+  //verifica se esta formatado
+  if(!verifica_formatacao()){
+    return 0;
+  }
+  // printf("dentro do free\n");
+
   //duvida: contar as celulas que estao parcialmente ocupadas por um arquivo?
   int celula_livre = 0;
   //fat representa o disco, entao o espaco que tem livre nele e o que livre no disco, exceto os quebrados
   for(int i=0;i<FATCLUSTERS;i++){
+    // printf("%d ", fat[i]);
     if(fat[i] == 1){
       celula_livre++;
     }
   }
+  // printf("celula_livre: %d\n", celula_livre);
   //cada celula equivale a um setor, cada setor tem 4096 bytes (isto eh, um clustersize)
   int total_bytes = celula_livre * CLUSTERSIZE;
   //nao tem printf no nucleo de um SO, portanto, devemos passar os bytes livres de alguma outra forma.
-  #printf("total bytes livres: %d\n", total_bytes);
-  return 0;
+  // printf("total bytes livres: %d\n", total_bytes);
+  return total_bytes;
 }
 
 // int fs_list(char *buffer, int size): Lista os arquivos do diretório, colocando a saída formatada em buffer. O formato é simples, um arquivo
 // por linha, seguido de seu tamanho e separado por dois tabs. Observe
 // que a sua função não deve escrever na tela.
 int fs_list(char *buffer, int size) {
+  if(!verifica_formatacao()){
+    return 0;
+  }
+
+  //reseta o vetor buffer e apaga tudo que já estava escrito nele
+  memset(buffer, '\0', size);
+
   //duvida: esse buffer tem 4096 bytes ou eh um vetor de bytes qualquer?
-  int aux = 1;
   int tamanho_usado = 0;
   for(int i=0;i<DIRENTRIES;i++){
-    if(dir[i].used){
+    // printf("teste\n");
+    if(dir[i].used == 1){
+      // printf("dir[i]: %d\n", i);
+      // printf("dir[i].used: %d\n", dir[i].used);
       //nao pode usar printf, tem que passar para um arquivo ou coisa assim
       //esse eh o formato certo?
       char temp[50];
       snprintf(temp, sizeof(temp), "%-25s %d    ", dir[i].name, dir[i].size);
+      //o temp não esta escrevendo dentro do buffer, provavel erro com if(...)
       if(tamanho_usado + strlen(temp) < size){
+        // printf("asdadsadasd\n");
         strcat(buffer, temp);
+        // printf("buffer %s\n", buffer);
       }
       else{
         printf("Erro. Buffer cheio!\n");
         return -1;
       } 
+      // printf("temp: %s\n", temp);
       // printf("%s%d   \n",dir[i].name, dir[i].size); //esse eh o formato certo?
     }
   }
-  return 0;
+  return 1;
 }
 
 int fs_create(char* file_name) {
-  //procura uma celuala livre no FAT
-  for(int i=0;i<FATCLUSTERS;i++){
-    if(i<=128){
-      if(!strcmp(file_name, dir[i].name)){ //se arquivo dir tem msm nome 
-        printf("Erro! Ja existe um arquivo com esse nome\n");;
-        return -1; 
-      }
-      if(!dir[i].used){ //se celula esta livre
-        dir[i].used=!dir[i].used;
-        strcpy(dir[i].name,file_name);
-        dir[i].size = 0;
-        dir[i].first_block = i;
-      }
-    }
-//
-    if(fat[i] == 1){
-      fat[i] = 2; //marca essa celula como incio e fim de um arquivo (o arquivo tem tamanho 0, por isso, o inicio e o fim eh igual)
+  if(!verifica_formatacao()){
+    return 0;
+  }
+
+  //verifica se ja tem arquivo com este nome
+  for(int i=0;i<DIRENTRIES;i++){
+    if(!strcmp(file_name, dir[i].name)){ //se arquivo dir tem msm nome 
+      printf("Erro! Ja existe um arquivo com esse nome\n");;
+      return -1; //ou return 0?
     }
   }
+
+  //procura uma celuala livre no FAT
+  int primeiro_bloco = -1;
+  for(int i=0;i<FATCLUSTERS;i++){
+    if(fat[i] == 1){
+      fat[i] = 2; //marca essa celula como incio e fim de um arquivo (o arquivo tem tamanho 0, por isso, o inicio e o fim eh igual)
+      primeiro_bloco = i;
+      // printf("i: %d\n", i);
+      break;
+    }
+  }
+  
+  if(primeiro_bloco == -1){
+    printf("FAT sem espaco\n");
+    return 0;
+  }
+
+  for(int i=0;i<DIRENTRIES;i++){
+    if(!dir[i].used){ //se celula esta livre
+      dir[i].used=!dir[i].used;
+      strcpy(dir[i].name,file_name);
+      dir[i].size = 0;
+      dir[i].first_block = primeiro_bloco;
+      break;
+    }
+  }
+//
+    
   return 0;
 }
 
 int fs_remove(char *file_name) {
+  if(!verifica_formatacao()){
+    return 0;
+  }
+  
   //procura a celuala no FAT
-  for(int i=0;i<FATCLUSTERS;i++){
-    if(i<=128){
-      if(!strcmp(file_name, dir[i].name)){ //se arquivo dir tem msm nome do arquivo para remover
-        dir[i].used=!dir[i].used;
-        strncpy(dir[i].name," ", 25);
-        dir[i].size = 0;
+  for(int i=0;i<128;i++){
+    if(!strcmp(file_name, dir[i].name)){ //se arquivo dir tem msm nome do arquivo para remover
+      dir[i].used = 0;
+      // printf("dir[i]: %d\n", i);
+      memset(dir[i].name, ' ', 25*sizeof(char)); //inicializa o nome da string com " " em todas as celulas.
+      // strncpy(dir[i].name,' ', 25);
+      dir[i].size = 0;
 //    
-        int bloco_procurar = dir[i].first_block;
-        while(bloco_procurar != 2){
-          fat[bloco_procurar] = 1;
-        }
-        dir[i].first_block = 0;
-        fat[dir[i].first_block] = 1;
+      int bloco_procurar = dir[i].first_block;
+      // printf("bloco_procurar: %d\n", bloco_procurar);
+      int temp = -1;
+      // printf("%d\n", dir[i].first_block);
+      while(temp != 2){
+        temp = fat[bloco_procurar];
+        fat[bloco_procurar] = 1;
+        bloco_procurar = fat[temp]; //quando temp = 2, nao acontece nada de ruim
+        // printf("bloco_procurar: %d\n", bloco_procurar);
       }
-    }
-
-    if(fat[i] == 1){
-      fat[i] = 2; //marca essa celula como incio e fim de um arquivo (o arquivo tem tamanho 0, por isso, o inicio e o fim eh igual)
+      dir[i].first_block = 1;
+      return 1;
+      // fat[dir[i].first_block] = 1; //essa parte ja eh feita antes.
     }
   }
+  printf("Não existe arquivos com esse nome\n");
   return 0;
 }
 
+// -------- PARTE 2 ------------------
 int fs_open(char *file_name, int mode) {
   if (mode == FS_R){ //se for abeerto em modo leitura, deve retornar -1 se arquivo nao existir
     int achou = 0;
