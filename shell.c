@@ -63,6 +63,9 @@ int main(int argc, char **argv) {
   if (!bl_init(image, size)) {
     exit(0);
   }
+  printf("teste1\n");
+  puts(image);
+  printf("teste2\n");
   printf("Arquivo de imagem %s aberto.\n", image);
   printf("Tamanho %d setores (%d bytes).\n", bl_size(), bl_size() * SECTORSIZE);
   
